@@ -3,162 +3,175 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Registro de Sessões de Terapia</title>
+    <title>Registros de Psicoterapia</title>
     <link rel="stylesheet" href="index.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
-    <div class="container">
-        <header>
-            <h1>Registro de Sessões de Terapia</h1>
-            <div class="header-right-controls">
-                <button class="sidebar-toggle-btn" id="openSettingsBtn" title="Configurações">
-                    <i class="fas fa-cog"></i>
-                </button>
-                <button class="sidebar-toggle-btn" id="toggleSidebarButton" title="Mostrar/Ocultar Sessões">
-                    <i class="fas fa-history"></i>
-                </button>
-                <button class="theme-toggle-btn" id="themeToggleButton" title="Alternar Modo Escuro/Claro">
-                    <i class="fas fa-sun"></i>
-                </button>
-            </div>
-        </header>
+    <div id="patientsView" class="view active">
+        <div class="patients-header">
+            <h1>Meus Pacientes</h1>
+            <button id="addPatientBtn" class="add-patient-button">
+                <i class="fas fa-plus"></i> Adicionar Paciente
+            </button>
+        </div>
+        <div id="patientsGrid" class="patients-grid">
+            <!-- Patient cards will be dynamically inserted here -->
+        </div>
+    </div>
 
+    <div id="patientDetailView" class="view">
         <div class="app-container">
-            <div id="patientsView" class="view active">
-                <h2>Meus Pacientes</h2>
-                <button id="addPatientBtn" class="primary-btn">Adicionar Paciente</button>
-                <div id="patientsGrid" class="patients-grid"></div>
-            </div>
-
-            <div id="patientDetailView" class="view">
-                <div class="patient-header">
-                    <h2 id="patientNameDisplay">Nome do Paciente</h2>
-                    <button id="editPatientNameBtn" title="Editar Nome"><i class="fas fa-pencil-alt"></i></button>
-                    <button id="showPatientInfoBtn" class="secondary-btn">Informações do Paciente</button>
-                    <button id="backToPatientsBtn" class="secondary-btn">Voltar</button>
-                </div>
-                <div class="editor-container">
-                    <div class="editor-header">
-                        <div class="editor-title" contenteditable="true" placeholder="Título da Sessão"></div>
+            <div class="main-content">
+                <div class="note-area">
+                    <div class="note-header">
+                        <div class="header-left-controls">
+                            <button id="backToPatientsBtn" class="action-button back-button" title="Voltar para Pacientes">
+                                <i class="fas fa-arrow-left"></i>
+                            </button>
+                        </div>
+                        <div class="title-container">
+                            <div id="patientNameDisplay" class="patient-name-display"></div>
+                            <div class="editor-title" contenteditable="true" placeholder="Sessão Sem Título">
+                                Sessão Sem Título
+                            </div>
+                        </div>
+                        <div class="header-right-controls">
+                            <button class="sidebar-toggle-btn" id="showPatientInfoBtn" title="Informações do Paciente">
+                                <i class="fas fa-user-circle"></i>
+                            </button>
+                            <div class="tab-navigation-container">
+                                <div class="tab-navigation">
+                                    <button class="tab-button active" data-tab="note">Registro</button>
+                                    <button class="tab-button" data-tab="raw">Bruto</button>
+                                    <div class="active-tab-indicator"></div>
+                                </div>
+                            </div>
+                            <button class="sidebar-toggle-btn" id="toggleSidebarButton" title="Mostrar/Ocultar Sessões">
+                                <i class="fas fa-history"></i>
+                            </button>
+                        </div>
                     </div>
-                    <div class="editor-content">
-                        <div class="transcription-section">
-                            <h3>Transcrição Bruta</h3>
-                            <div class="transcription-content" id="rawTranscription" contenteditable="true" placeholder="A transcrição bruta aparecerá aqui..."></div>
-                        </div>
-                        <div class="polished-note-section">
-                            <h3>Registro Formatado</h3>
-                            <div class="polished-note-content" id="polishedNote" contenteditable="true" placeholder="O registro formatado aparecerá aqui..."></div>
-                        </div>
+                    <div class="note-content-wrapper">
+                        <div id="polishedNote" class="note-content active" contenteditable="true" placeholder="Seu registro de sessão formatado aparecerá aqui..."></div>
+                        <div id="rawTranscription" class="note-content" contenteditable="true" placeholder="A transcrição bruta aparecerá aqui..."></div>
                     </div>
                 </div>
                 <div class="recording-interface">
-                    <div class="status-indicator"></div>
-                    <div class="live-recording-title" id="liveRecordingTitle" style="display: none;"></div>
-                    <canvas id="liveWaveformCanvas" style="display: none;"></canvas>
-                    <div class="live-recording-timer" id="liveRecordingTimerDisplay" style="display: none;"></div>
-                    <button id="recordButton" class="record-btn">
-                        <span class="record-button-inner">
-                            <i class="fas fa-microphone"></i>
-                        </span>
-                    </button>
-                    <div id="recordingStatus">Pronto para gravar</div>
-                </div>
-            </div>
-
-            <div id="patientInfoView" class="view">
-                <h2>Informações do Paciente</h2>
-                <div class="patient-info-header">
-                    <h3 id="patientInfoNameDisplay">Nome do Paciente</h3>
-                    <button id="backToDetailBtn" class="secondary-btn">Voltar</button>
-                </div>
-                <div class="patient-info-content">
-                    <div class="contact-info">
-                        <h3>Informações de Contato</h3>
-                        <div class="form-group">
-                            <label for="patientWhatsappInput">WhatsApp</label>
-                            <input type="text" id="patientWhatsappInput" placeholder="(99) 99999-9999">
-                        </div>
-                        <div class="form-group">
-                            <label for="patientEmailInput">E-mail</label>
-                            <input type="email" id="patientEmailInput" placeholder="exemplo@email.com">
-                        </div>
-                        <button id="savePatientInfoBtn" class="primary-btn">Salvar Informações</button>
+                    <div id="liveRecordingTitle" class="live-recording-title" style="display: none">Gravando</div>
+                    <canvas id="liveWaveformCanvas" style="display: none"></canvas>
+                    <div id="liveRecordingTimerDisplay" class="live-recording-timer" style="display: none">00:00.00</div>
+                    <div class="status-indicator">
+                        <span id="recordingStatus" class="status-text">Pronto para gravar</span>
                     </div>
-                    <div class="tags-section">
-                        <h3>Tags</h3>
-                        <div class="tags-container" id="patientTagsContainer"></div>
-                        <div class="tag-input">
-                            <input type="text" id="patientTagsInput" placeholder="Adicionar tag...">
-                            <button id="addTagBtn" class="primary-btn">Adicionar</button>
-                        </div>
-                    </div>
-                    <div class="timeline-section">
-                        <h3>Linha do Tempo</h3>
-                        <div class="timeline-container" id="patientTimelineContainer"></div>
+                    <div class="recording-controls">
+                        <button class="action-button" id="themeToggleButton" title="Alternar Tema">
+                            <i class="fas fa-sun"></i>
+                        </button>
+                        <button id="recordButton" class="record-button" title="Iniciar/Parar Gravação">
+                            <div class="record-button-inner">
+                                <i class="fas fa-microphone"></i>
+                            </div>
+                            <svg class="record-waves" viewBox="0 0 200 200">
+                                <circle class="wave wave1" cx="100" cy="100" r="40" />
+                                <circle class="wave wave2" cx="100" cy="100" r="70" />
+                                <circle class="wave wave3" cx="100" cy="100" r="100" />
+                            </svg>
+                            <span class="record-text">Gravar</span>
+                        </button>
+                        <div class="action-button-placeholder"></div>
                     </div>
                 </div>
             </div>
-
-            <div class="sidebar" id="sidebar">
-                <div class="sidebar-header">
-                    <h3>Sessões</h3>
-                    <button id="newNoteSidebarButton" class="primary-btn">Nova Sessão</button>
-                </div>
-                <ul id="notesList"></ul>
-            </div>
-            <div class="sidebar-overlay" id="sidebarOverlay"></div>
         </div>
-
-        <div id="addPatientModal" class="modal-overlay hidden">
-            <div class="modal-content">
-                <h2>Adicionar Novo Paciente</h2>
-                <input type="text" id="patientNameInput" placeholder="Nome do paciente" required>
-                <div class="modal-actions">
-                    <button id="savePatientBtn" class="primary-btn">Salvar</button>
-                    <button id="cancelAddPatientBtn" class="secondary-btn">Cancelar</button>
-                </div>
+        <div id="sidebarOverlay" class="sidebar-overlay"></div>
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <h2>Sessões</h2>
+                <button class="sidebar-new-note-btn" id="newNoteSidebarButton" title="Nova Sessão">
+                    <i class="fas fa-plus"></i>
+                </button>
             </div>
+            <ul class="notes-list" id="notesList">
+                <!-- Session notes for the selected patient will be inserted here -->
+            </ul>
         </div>
+    </div>
 
-        <div id="settingsModal" class="modal-overlay hidden">
-            <div class="modal-content">
-                <h2>Configurações do Aplicativo</h2>
-                <p id="settingsMessage" style="color: var(--color-text-secondary); margin-bottom: 16px; display: none;"></p>
-                <p>Insira a URL do webhook do seu workflow no n8n:</p>
-                <input type="url" id="n8nWebhookInput" placeholder="https://seu-n8n.com/webhook/..." style="width: 100%; padding: 12px; margin: 12px 0; border: 1px solid var(--color-border); border-radius: 8px; background-color: var(--color-surface);">
-                <div class="modal-actions">
-                    <button id="closeSettingsModalBtn" class="modal-button secondary">Cancelar</button>
-                    <button id="saveSettingsBtn" class="modal-button primary">Salvar Configurações</button>
-                </div>
+    <div id="patientInfoView" class="view">
+        <div class="patient-info-header">
+            <button id="backToDetailBtn" class="action-button back-button" title="Voltar para Sessões">
+                <i class="fas fa-arrow-left"></i>
+            </button>
+            <div class="patient-name-header-container">
+                <h1 id="patientInfoNameDisplay" contenteditable="false">Informações do Paciente</h1>
+                <button id="editPatientNameBtn" class="action-button edit-name-button" title="Editar Nome">
+                    <i class="fas fa-pencil-alt"></i>
+                </button>
             </div>
         </div>
-
-        <div id="confirmationModal" class="modal-overlay hidden">
-            <div class="modal-content">
-                <p id="confirmationModalMessage">Tem certeza que deseja apagar este item?</p>
-                <div class="modal-actions">
-                    <button id="confirmDeleteBtn" class="primary-btn">Confirmar</button>
-                    <button id="cancelDeleteBtn" class="secondary-btn">Cancelar</button>
+        <div class="patient-info-content">
+            <div class="patient-info-column">
+                <div class="info-card">
+                    <h2>Informações de Contato</h2>
+                    <div class="form-group">
+                        <label for="patientWhatsappInput">WhatsApp</label>
+                        <input type="text" id="patientWhatsappInput" placeholder="(99) 99999-9999">
+                    </div>
+                    <div class="form-group">
+                        <label for="patientEmailInput">E-mail</label>
+                        <input type="email" id="patientEmailInput" placeholder="exemplo@email.com">
+                    </div>
+                    <button id="savePatientInfoBtn" class="modal-button primary">Salvar Informações</button>
+                </div>
+                <div class="info-card">
+                    <h2>Tags</h2>
+                    <div class="tags-input-container">
+                        <input type="text" id="patientTagsInput" placeholder="Adicionar tag (ex: Ansiedade)">
+                        <button id="addTagBtn"><i class="fas fa-plus"></i></button>
+                    </div>
+                    <div id="patientTagsContainer" class="tags-container">
+                        <!-- Tags will be dynamically inserted here -->
+                    </div>
+                </div>
+            </div>
+            <div class="patient-info-column timeline-column">
+                <div class="info-card">
+                    <h2>Linha do Tempo Clínica</h2>
+                    <div id="patientTimelineContainer" class="timeline-container">
+                        <!-- Timeline items will be dynamically inserted here -->
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <script>
-        // Aqui está o código JavaScript completo (versão compilada do TypeScript)
-        // Este é o código que substitui o index.tsx
-        (function() {
-            // [Código JavaScript completo - versão compilada do TypeScript]
-            // Este é o mesmo código que eu compartilhei anteriormente, mas convertido para JS
-            // para funcionar no GitHub Pages sem necessidade de compilação
-            
-            // ... (o código completo está abaixo, mas removi aqui para não ficar muito longo)
-            // Na prática, você deve copiar TODO o código JS que eu vou fornecer no próximo bloco
-            
-        })();
-    </script>
+    <div id="addPatientModal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <h2>Adicionar Novo Paciente</h2>
+            <p>Insira o nome do paciente para criar seu prontuário.</p>
+            <input type="text" id="patientNameInput" placeholder="Nome completo do paciente">
+            <div class="modal-actions">
+                <button id="cancelAddPatientBtn" class="modal-button secondary">Cancelar</button>
+                <button id="savePatientBtn" class="modal-button primary">Salvar</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="confirmationModal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <h2>Confirmar Exclusão</h2>
+            <p id="confirmationModalMessage">Tem certeza que deseja continuar?</p>
+            <div class="modal-actions">
+                <button id="cancelDeleteBtn" class="modal-button secondary">Cancelar</button>
+                <button id="confirmDeleteBtn" class="modal-button danger">Confirmar Exclusão</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/js/all.min.js"></script>
+    <script src="index.js"></script>
 </body>
 </html>

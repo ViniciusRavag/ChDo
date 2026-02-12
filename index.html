@@ -1,0 +1,828 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ChronoTask - Relógio Diário</title>
+    
+    <!-- Tailwind CSS (Estilização) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- React & ReactDOM (Core) -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    
+    <!-- Babel (Para entender o código JSX no navegador) -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <!-- Configuração do Tailwind para fontes e cores customizadas se necessário -->
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['Fira Code', 'monospace'],
+                    },
+                }
+            }
+        }
+    </script>
+    
+    <style>
+        /* Ajustes finos de scrollbar e animações */
+        body { margin: 0; padding: 0; }
+        .scrollbar-hide::-webkit-scrollbar { display: none; }
+        .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+        .animate-pulse-slow { animation: pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: .5; }
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
+        // --- ICONES (Lucide React recriados para funcionar sem build) ---
+        const IconBase = ({ size = 24, className = "", children }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+                {children}
+            </svg>
+        );
+
+        const Plus = (props) => <IconBase {...props}><path d="M5 12h14"/><path d="M12 5v14"/></IconBase>;
+        const Trash2 = (props) => <IconBase {...props}><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></IconBase>;
+        const Clock = (props) => <IconBase {...props}><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></IconBase>;
+        const CalendarIcon = (props) => <IconBase {...props}><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></IconBase>;
+        const CheckCircle2 = (props) => <IconBase {...props}><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></IconBase>;
+        const CircleIcon = (props) => <IconBase {...props}><circle cx="12" cy="12" r="10"/></IconBase>;
+        const X = (props) => <IconBase {...props}><path d="M18 6 6 18"/><path d="m6 6 12 12"/></IconBase>;
+        const Pencil = (props) => <IconBase {...props}><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></IconBase>;
+        const Sparkles = (props) => <IconBase {...props}><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/><path d="M5 3v4"/><path d="M9 3v4"/><path d="M3 5h4"/><path d="M3 9h4"/></IconBase>;
+        const Save = (props) => <IconBase {...props}><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></IconBase>;
+        const Moon = (props) => <IconBase {...props}><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></IconBase>;
+        const Sun = (props) => <IconBase {...props}><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></IconBase>;
+        const List = (props) => <IconBase {...props}><line x1="8" x2="21" y1="6" y2="6"/><line x1="8" x2="21" y1="12" y2="12"/><line x1="8" x2="21" y1="18" y2="18"/><line x1="3" x2="3.01" y1="6" y2="6"/><line x1="3" x2="3.01" y1="12" y2="12"/><line x1="3" x2="3.01" y1="18" y2="18"/></IconBase>;
+        const LayoutTemplate = (props) => <IconBase {...props}><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><line x1="3" x2="21" y1="9" y2="9"/><line x1="9" x2="9" y1="21" y2="9"/></IconBase>;
+        const ChevronRight = (props) => <IconBase {...props}><path d="m9 18 6-6-6-6"/></IconBase>;
+        const ChevronLeft = (props) => <IconBase {...props}><path d="m15 18-6-6 6-6"/></IconBase>;
+
+        // --- UTILS: Datas e Tempo ---
+        const toDateKey = (date) => date.toISOString().split('T')[0];
+
+        const isSameDay = (d1, d2) => toDateKey(d1) === toDateKey(d2);
+
+        const formatDateDisplay = (date) => {
+            const today = new Date();
+            const tomorrow = new Date(today);
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            const yesterday = new Date(today);
+            yesterday.setDate(yesterday.getDate() - 1);
+
+            if (isSameDay(date, today)) return 'Hoje';
+            if (isSameDay(date, tomorrow)) return 'Amanhã';
+            if (isSameDay(date, yesterday)) return 'Ontem';
+
+            return date.toLocaleDateString('pt-BR', { weekday: 'short', day: 'numeric', month: 'short' });
+        };
+
+        const timeToMinutes = (timeStr) => {
+            if (!timeStr) return 0;
+            const [hours, minutes] = timeStr.split(':').map(Number);
+            return hours * 60 + minutes;
+        };
+
+        const minutesToTime = (totalMinutes) => {
+            const hours = Math.floor(totalMinutes / 60);
+            const minutes = totalMinutes % 60;
+            return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+        };
+
+        const polarToCartesian = (centerX, centerY, radius, angleInDegrees) => {
+            const angleInRadians = (angleInDegrees - 90) * Math.PI / 180.0;
+            return {
+                x: centerX + (radius * Math.cos(angleInRadians)),
+                y: centerY + (radius * Math.sin(angleInRadians))
+            };
+        };
+
+        const describeArc = (x, y, innerRadius, outerRadius, startAngle, endAngle) => {
+            if (endAngle <= startAngle) endAngle += 360;
+            if (endAngle - startAngle >= 360) endAngle = startAngle + 359.99;
+            
+            const start = polarToCartesian(x, y, outerRadius, endAngle);
+            const end = polarToCartesian(x, y, outerRadius, startAngle);
+            const startInner = polarToCartesian(x, y, innerRadius, endAngle);
+            const endInner = polarToCartesian(x, y, innerRadius, startAngle);
+
+            const largeArcFlag = endAngle - startAngle <= 180 ? "0" : "1";
+
+            return [
+                "M", start.x, start.y,
+                "A", outerRadius, outerRadius, 0, largeArcFlag, 0, end.x, end.y,
+                "L", endInner.x, endInner.y,
+                "A", innerRadius, innerRadius, 0, largeArcFlag, 1, startInner.x, startInner.y,
+                "Z"
+            ].join(" ");
+        };
+
+        const timeToDegrees = (timeStr) => {
+            const totalMinutes = timeToMinutes(timeStr);
+            const minutesOnClock = totalMinutes % 720; 
+            return (minutesOnClock / 720) * 360;
+        };
+
+        const isPM = (timeStr) => {
+            const [hours] = timeStr.split(':').map(Number);
+            return hours >= 12;
+        };
+
+        const findSmartSlot = (durationInMinutes, existingTasks, selectedDate, currentEditingId = null) => {
+            const today = new Date();
+            const isToday = isSameDay(selectedDate, today);
+            const currentMins = today.getHours() * 60 + today.getMinutes();
+            
+            const morningBoundary = 8 * 60 + 30; // 08:30 AM
+            const buffer = 30;
+            const dayEnd = 1439;
+
+            let searchStart;
+            if (isToday) {
+                searchStart = Math.max(morningBoundary, currentMins + buffer);
+            } else {
+                searchStart = morningBoundary;
+            }
+
+            const obstacles = existingTasks
+                .filter(t => t.id !== currentEditingId)
+                .sort((a, b) => timeToMinutes(a.start) - timeToMinutes(b.start));
+
+            let found = false;
+            let finalStart = null;
+
+            while (!found && searchStart + durationInMinutes <= dayEnd) {
+                const proposedEnd = searchStart + durationInMinutes;
+                
+                const collision = obstacles.find(t => {
+                    const tStart = timeToMinutes(t.start);
+                    const tEnd = timeToMinutes(t.end);
+                    return (searchStart < tEnd && proposedEnd > tStart);
+                });
+
+                if (collision) {
+                    searchStart = timeToMinutes(collision.end);
+                } else {
+                    found = true;
+                    finalStart = searchStart;
+                }
+            }
+
+            return found ? minutesToTime(finalStart) : null;
+        };
+
+        const COLORS = [
+            { name: 'Blue', hex: '#3b82f6' },
+            { name: 'Purple', hex: '#a855f7' },
+            { name: 'Pink', hex: '#ec4899' },
+            { name: 'Green', hex: '#22c55e' },
+            { name: 'Orange', hex: '#f97316' },
+            { name: 'Yellow', hex: '#eab308' },
+        ];
+
+        const PRESET_DURATIONS = [15, 30, 45, 60, 90, 120];
+
+        const THEMES = {
+            dark: {
+                bg: 'bg-slate-950',
+                text: 'text-slate-100',
+                subText: 'text-slate-500',
+                cardBg: 'bg-slate-900',
+                cardHover: 'hover:bg-slate-800',
+                border: 'border-slate-800',
+                clockBg: '#0f172a',
+                clockStroke: '#1e293b',
+                clockText: '#475569',
+                inputBg: 'bg-slate-950',
+                accent: 'text-indigo-400',
+                navBg: 'bg-slate-800/50'
+            },
+            light: {
+                bg: 'bg-slate-50',
+                text: 'text-slate-900',
+                subText: 'text-slate-500',
+                cardBg: 'bg-white',
+                cardHover: 'hover:bg-slate-100',
+                border: 'border-slate-200',
+                clockBg: '#ffffff',
+                clockStroke: '#e2e8f0',
+                clockText: '#94a3b8',
+                inputBg: 'bg-slate-50',
+                accent: 'text-indigo-600',
+                navBg: 'bg-slate-200/50'
+            }
+        };
+
+        // --- APP COMPONENT ---
+        function App() {
+            const [currentTime, setCurrentTime] = useState(new Date());
+            
+            const [tasks, setTasks] = useState([
+                { 
+                    id: 1, 
+                    title: 'Sono Obrigatório', 
+                    start: '00:00', 
+                    end: '08:30', 
+                    duration: 510, 
+                    color: {hex: '#64748b'}, 
+                    completed: true, 
+                    isSystem: true,
+                    date: toDateKey(new Date()) 
+                },
+                { 
+                    id: 2, 
+                    title: 'Primeira Tarefa', 
+                    start: '09:00', 
+                    end: '10:00', 
+                    duration: 60, 
+                    color: COLORS[0], 
+                    completed: false, 
+                    isSystem: false,
+                    date: toDateKey(new Date()) 
+                }
+            ]);
+            
+            const [selectedDate, setSelectedDate] = useState(new Date());
+            
+            const displayedTasks = tasks.filter(t => t.date === toDateKey(selectedDate) && !t.isSystem);
+            const tasksForLogic = tasks.filter(t => t.date === toDateKey(selectedDate) && !t.isSystem);
+
+            const [formState, setFormState] = useState({ 
+                id: null, 
+                title: '', 
+                start: '09:00', 
+                duration: 30, 
+                color: COLORS[0], 
+                isAutoTime: true 
+            });
+
+            const [hoveredTask, setHoveredTask] = useState(null);
+            const [selectedTaskId, setSelectedTaskId] = useState(null);
+            const [activeView, setActiveView] = useState('clock'); 
+            const [isFormOpen, setIsFormOpen] = useState(false);
+            const [isDarkMode, setIsDarkMode] = useState(true);
+
+            const touchStartX = useRef(null);
+            const touchEndX = useRef(null);
+            
+            const theme = isDarkMode ? THEMES.dark : THEMES.light;
+
+            useEffect(() => {
+                const timer = setInterval(() => setCurrentTime(new Date()), 60000);
+                return () => clearInterval(timer);
+            }, []);
+
+            const changeDate = (days) => {
+                const newDate = new Date(selectedDate);
+                newDate.setDate(selectedDate.getDate() + days);
+                setSelectedDate(newDate);
+                setSelectedTaskId(null); 
+            };
+
+            const handleTouchStart = (e) => {
+                touchStartX.current = e.targetTouches[0].clientX;
+            };
+
+            const handleTouchMove = (e) => {
+                touchEndX.current = e.targetTouches[0].clientX;
+            };
+
+            const handleTouchEnd = () => {
+                if (!touchStartX.current || !touchEndX.current) return;
+                const distance = touchStartX.current - touchEndX.current;
+                const threshold = 50;
+
+                if (distance > threshold && activeView === 'clock') setActiveView('timeline');
+                if (distance < -threshold && activeView === 'timeline') setActiveView('clock');
+
+                touchStartX.current = null;
+                touchEndX.current = null;
+            };
+
+            const handleEdit = (task) => {
+                if (task.isSystem) return;
+                setFormState({
+                    id: task.id,
+                    title: task.title,
+                    start: task.start,
+                    duration: task.duration,
+                    color: task.color,
+                    isAutoTime: false 
+                });
+                setIsFormOpen(true);
+                setActiveView('timeline');
+            };
+
+            const handleClockClick = (e, taskId) => {
+                e.stopPropagation();
+                setSelectedTaskId(prev => prev === taskId ? null : taskId);
+            };
+
+            const handleClockDoubleClick = (e, taskId) => {
+                e.stopPropagation();
+                toggleTask(taskId);
+            };
+
+            const handleBackgroundClick = () => {
+                setSelectedTaskId(null);
+            };
+
+            const handleAddTaskFromClock = () => {
+                resetForm();
+                setIsFormOpen(true);
+                setActiveView('timeline');
+            };
+
+            const handleCancel = () => {
+                setIsFormOpen(false);
+                resetForm();
+            };
+
+            const resetForm = () => {
+                setFormState({ 
+                    id: null,
+                    title: '', 
+                    start: '09:00', 
+                    duration: 30, 
+                    color: COLORS[Math.floor(Math.random() * COLORS.length)],
+                    isAutoTime: true 
+                });
+            };
+
+            const saveTask = (e) => {
+                e.preventDefault();
+                if (!formState.title) return;
+
+                let finalStartTime = formState.start;
+
+                if (formState.isAutoTime) {
+                    const bestSlot = findSmartSlot(formState.duration, tasksForLogic, selectedDate, formState.id);
+                    if (!bestSlot) {
+                        alert("Dia cheio! Não consegui encontrar espaço disponível.");
+                        return;
+                    }
+                    finalStartTime = bestSlot;
+                }
+
+                const startMins = timeToMinutes(finalStartTime);
+                const endMins = startMins + formState.duration;
+                
+                if (endMins > 1440) {
+                    alert("A tarefa passa da meia-noite.");
+                    return;
+                }
+
+                const finalEndTime = minutesToTime(endMins);
+
+                const taskPayload = {
+                    id: formState.id || Date.now(),
+                    title: formState.title,
+                    start: finalStartTime,
+                    end: finalEndTime,
+                    duration: formState.duration,
+                    color: formState.color,
+                    completed: false,
+                    date: toDateKey(selectedDate)
+                };
+
+                if (formState.id) {
+                    const original = tasks.find(t => t.id === formState.id);
+                    if (original) taskPayload.completed = original.completed;
+                    setTasks(prev => prev.map(t => t.id === formState.id ? taskPayload : t));
+                } else {
+                    setTasks(prev => [...prev, taskPayload]);
+                }
+
+                setIsFormOpen(false);
+                resetForm();
+            };
+
+            const toggleTask = (id) => {
+                setTasks(tasks.map(t => t.id === id ? { ...t, completed: !t.completed } : t));
+            };
+
+            const deleteTask = (id) => {
+                setTasks(tasks.filter(t => t.id !== id));
+                if (hoveredTask === id) setHoveredTask(null);
+                if (selectedTaskId === id) setSelectedTaskId(null);
+                if (formState.id === id) handleCancel();
+            };
+
+            const clockSize = 340;
+            const center = clockSize / 2;
+            const getRadius = (timeStr) => isPM(timeStr) ? { inner: 105, outer: 145 } : { inner: 55, outer: 95 };
+            
+            const currentHours = currentTime.getHours();
+            const currentMinutes = currentTime.getMinutes();
+            const currentDegrees = ((currentHours % 12) * 60 + currentMinutes) / 720 * 360;
+            const isToday = isSameDay(selectedDate, currentTime);
+            
+            const activeTaskId = selectedTaskId || hoveredTask;
+            const activeTaskData = activeTaskId ? tasks.find(t => t.id === activeTaskId) : null;
+
+            return (
+                <div className={`min-h-screen ${theme.bg} ${theme.text} font-sans transition-colors duration-300 overflow-hidden flex flex-col`}>
+                
+                {/* Header Fixo */}
+                <header className={`px-4 py-3 sm:px-6 sm:py-4 flex justify-between items-center ${isDarkMode ? 'bg-slate-900/80' : 'bg-white/80'} backdrop-blur-md border-b ${theme.border} z-30 transition-colors duration-300`}>
+                    <div className="flex items-center gap-3">
+                    <div className="p-2 bg-gradient-to-tr from-indigo-600 to-purple-600 rounded-lg shadow-lg shadow-indigo-500/20">
+                        <Clock className="w-5 h-5 text-white" />
+                    </div>
+                    <h1 className="hidden sm:block text-xl font-bold bg-gradient-to-r from-indigo-500 to-purple-500 bg-clip-text text-transparent">
+                        Chrono<span className={`font-light ${isDarkMode ? 'text-slate-300' : 'text-slate-600'}`}>Task</span>
+                    </h1>
+                    </div>
+                    
+                    {/* Navegador de Data */}
+                    <div className={`flex items-center gap-3 ${theme.navBg} px-3 py-1.5 rounded-full border ${theme.border}`}>
+                        <button onClick={() => changeDate(-1)} className={`p-1 rounded-full ${theme.subText} hover:${theme.text} hover:bg-black/10 transition-all`}>
+                            <ChevronLeft size={16}/>
+                        </button>
+                        <div className="flex flex-col items-center min-w-[80px]">
+                            <span className={`text-xs font-bold uppercase tracking-wider ${theme.text}`}>{formatDateDisplay(selectedDate)}</span>
+                        </div>
+                        <button onClick={() => changeDate(1)} className={`p-1 rounded-full ${theme.subText} hover:${theme.text} hover:bg-black/10 transition-all`}>
+                            <ChevronRight size={16}/>
+                        </button>
+                    </div>
+                    
+                    <div className="flex items-center gap-2 sm:gap-4">
+                        <button 
+                            onClick={() => setIsDarkMode(!isDarkMode)}
+                            className={`p-2 rounded-full transition-all ${isDarkMode ? 'bg-slate-800 text-yellow-400 hover:bg-slate-700' : 'bg-slate-200 text-slate-600 hover:bg-slate-300'}`}
+                        >
+                            {isDarkMode ? <Sun size={18} /> : <Moon size={18} />}
+                        </button>
+                    </div>
+                </header>
+
+                {/* Main Container */}
+                <main 
+                    className="flex-1 relative w-full overflow-hidden touch-pan-y"
+                    onTouchStart={handleTouchStart}
+                    onTouchMove={handleTouchMove}
+                    onTouchEnd={handleTouchEnd}
+                >
+                    <div 
+                        className="flex w-[200%] h-full transition-transform duration-500 ease-in-out will-change-transform"
+                        style={{ transform: activeView === 'clock' ? 'translateX(0)' : 'translateX(-50%)' }}
+                    >
+                        
+                        {/* === VIEW 1: RELÓGIO === */}
+                        <div className="w-1/2 h-full flex flex-col items-center justify-center p-4 relative" onClick={handleBackgroundClick}>
+                            
+                            {/* Legenda */}
+                            <div className={`absolute top-4 left-6 text-[10px] ${theme.subText} space-y-2 font-mono hidden sm:block opacity-70`}>
+                                <div className="flex items-center gap-2">
+                                    <span className={`w-2 h-2 rounded-full ${isDarkMode ? 'bg-slate-700' : 'bg-slate-300'}`}></span>
+                                    <span>AM (Manhã)</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <span className={`w-2 h-2 rounded-full border ${isDarkMode ? 'border-slate-600' : 'border-slate-300'}`}></span>
+                                    <span>PM (Tarde/Noite)</span>
+                                </div>
+                            </div>
+
+                            <div className="relative drop-shadow-xl scale-90 sm:scale-100 transition-transform">
+                                <svg width={clockSize} height={clockSize} className="transition-all duration-500 ease-out">
+                                <circle cx={center} cy={center} r={160} fill={theme.clockBg} stroke={theme.clockStroke} strokeWidth="1" />
+                                <path d={describeArc(center, center, 55, 95, 0, timeToDegrees("08:30"))} fill={theme.clockStroke} opacity="0.1" />
+
+                                {[...Array(12)].map((_, i) => {
+                                    const angle = i * 30;
+                                    const pos = polarToCartesian(center, center, 130, angle);
+                                    const lineStart = polarToCartesian(center, center, 148, angle);
+                                    const lineEnd = polarToCartesian(center, center, 155, angle);
+                                    return (
+                                    <g key={i}>
+                                        <line x1={lineStart.x} y1={lineStart.y} x2={lineEnd.x} y2={lineEnd.y} stroke={theme.clockText} strokeWidth="2" opacity="0.3" />
+                                        <text x={pos.x} y={pos.y} dy="4" textAnchor="middle" className="text-[10px] font-bold font-mono select-none" fill={theme.clockText}>
+                                        {i === 0 ? 12 : i}
+                                        </text>
+                                    </g>
+                                    );
+                                })}
+
+                                {displayedTasks.map((task) => {
+                                    const startDeg = timeToDegrees(task.start);
+                                    const endDeg = timeToDegrees(task.end);
+                                    const { inner, outer } = getRadius(task.start);
+                                    const isActive = hoveredTask === task.id || selectedTaskId === task.id;
+                                    const pathData = describeArc(center, center, inner, outer, startDeg, endDeg);
+
+                                    return (
+                                    <g key={task.id} 
+                                        onMouseEnter={() => setHoveredTask(task.id)}
+                                        onMouseLeave={() => setHoveredTask(null)}
+                                        onClick={(e) => handleClockClick(e, task.id)}
+                                        onDoubleClick={(e) => handleClockDoubleClick(e, task.id)}
+                                        className="cursor-pointer transition-all duration-300"
+                                        style={{ opacity: task.completed ? 0.2 : 1 }}
+                                    >
+                                        <path 
+                                        d={pathData} 
+                                        fill={task.color.hex} 
+                                        stroke={isActive ? (isDarkMode ? 'white' : 'black') : 'transparent'}
+                                        strokeWidth={isActive ? 2 : 0}
+                                        className="transition-all duration-300"
+                                        fillOpacity={isActive ? 1 : 0.85}
+                                        />
+                                    </g>
+                                    );
+                                })}
+
+                                {isToday && (
+                                    <g className="filter drop-shadow-md">
+                                        <line 
+                                            x1={center} y1={center} 
+                                            x2={polarToCartesian(center, center, currentHours >= 12 ? 140 : 90, currentDegrees).x} 
+                                            y2={polarToCartesian(center, center, currentHours >= 12 ? 140 : 90, currentDegrees).y} 
+                                            stroke="#ef4444" 
+                                            strokeWidth="3" 
+                                            strokeLinecap="round"
+                                        />
+                                        <circle cx={center} cy={center} r="4" fill="#ef4444" />
+                                    </g>
+                                )}
+                                </svg>
+
+                                <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-center pointer-events-none w-32">
+                                    {activeTaskData ? (
+                                    <div className="animate-in fade-in zoom-in duration-200">
+                                        <p className={`text-[10px] ${theme.subText} font-mono leading-tight mb-1`}>
+                                            {activeTaskData.start} - {activeTaskData.end}
+                                        </p>
+                                        <p className={`font-bold text-sm ${theme.text} truncate px-1`}>
+                                            {activeTaskData.title}
+                                        </p>
+                                    </div>
+                                    ) : (
+                                    <div>
+                                        {isToday ? (
+                                            <>
+                                            <p className={`text-[9px] uppercase tracking-widest mb-1 opacity-70 ${theme.subText}`}>Agora</p>
+                                            <p className={`text-2xl font-bold font-mono tracking-tighter ${theme.subText}`}>
+                                                {currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                            </p>
+                                            </>
+                                        ) : (
+                                            <p className={`text-sm font-bold ${theme.subText}`}>
+                                                {formatDateDisplay(selectedDate)}
+                                            </p>
+                                        )}
+                                    </div>
+                                    )}
+                                </div>
+                            </div>
+
+                            <div className="mt-8 flex flex-col items-center gap-4">
+                                <button 
+                                    onClick={handleAddTaskFromClock}
+                                    className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-full shadow-lg hover:shadow-indigo-500/30 transition-all active:scale-95 font-medium"
+                                >
+                                    <Plus size={18} />
+                                    <span>Adicionar Tarefa</span>
+                                </button>
+                                
+                                <button 
+                                    onClick={() => setActiveView('timeline')}
+                                    className={`flex items-center gap-1 text-xs ${theme.subText} hover:${theme.accent} transition-colors animate-pulse`}
+                                >
+                                    <span>Ver linha do tempo</span>
+                                    <ChevronRight size={14}/>
+                                </button>
+                            </div>
+                        </div>
+
+
+                        {/* === VIEW 2: LINHA DO TEMPO === */}
+                        <div className={`w-1/2 h-full overflow-y-auto ${isDarkMode ? 'bg-slate-900/50' : 'bg-slate-100/50'} p-4 lg:p-8`}>
+                            <div className="max-w-xl mx-auto flex flex-col gap-6 pb-20">
+                                
+                                <div className="flex sm:hidden">
+                                    <button onClick={() => setActiveView('clock')} className={`flex items-center gap-1 text-xs ${theme.subText}`}>
+                                        <ChevronLeft size={14}/> Voltar para Relógio
+                                    </button>
+                                </div>
+
+                                {!isFormOpen && (
+                                    <button 
+                                        onClick={() => { resetForm(); setIsFormOpen(true); }}
+                                        className={`w-full py-5 rounded-2xl border-2 border-dashed ${theme.border} ${theme.cardBg} hover:border-indigo-500 ${theme.subText} hover:${theme.accent} transition-all flex flex-col items-center justify-center gap-2 group shadow-sm`}
+                                    >
+                                        <div className={`${isDarkMode ? 'bg-slate-800' : 'bg-slate-200'} p-2 rounded-full group-hover:bg-indigo-500 group-hover:text-white transition-colors duration-300`}>
+                                            <Plus size={24} />
+                                        </div>
+                                        <span className="font-medium text-sm">Nova Tarefa para {formatDateDisplay(selectedDate)}</span>
+                                    </button>
+                                )}
+
+                                {isFormOpen && (
+                                    <div className={`${theme.cardBg} border ${theme.border} p-6 rounded-2xl shadow-xl animate-in slide-in-from-bottom-8 fade-in relative`}>
+                                    <div className="flex justify-between items-center mb-6">
+                                        <div className="flex items-center gap-2">
+                                            {formState.id ? <Pencil size={18} className="text-blue-400"/> : <Sparkles size={18} className="text-purple-400"/>}
+                                            <h2 className={`text-lg font-bold ${theme.text}`}>
+                                                {formState.id ? 'Editar Tarefa' : 'Nova Atividade'}
+                                            </h2>
+                                        </div>
+                                        <button onClick={handleCancel} className={`${theme.subText} hover:${theme.text} p-2 rounded-full transition-colors`}><X size={18}/></button>
+                                    </div>
+                                    
+                                    <form onSubmit={saveTask} className="space-y-6">
+                                        <div>
+                                            <label className={`text-[10px] uppercase ${theme.subText} font-bold tracking-wider mb-2 block`}>O que fazer?</label>
+                                            <input
+                                                type="text"
+                                                placeholder="Ex: Estudar..."
+                                                className={`w-full ${theme.inputBg} border ${theme.border} rounded-xl p-3 ${theme.text} focus:outline-none focus:ring-2 focus:ring-indigo-500 placeholder:${theme.subText} text-sm transition-colors`}
+                                                value={formState.title}
+                                                onChange={(e) => setFormState({ ...formState, title: e.target.value })}
+                                                autoFocus
+                                            />
+                                        </div>
+
+                                        <div className={`${theme.inputBg} p-4 rounded-xl border ${theme.border}`}>
+                                            <div className="flex items-center justify-between mb-4">
+                                                <label className={`text-[10px] uppercase ${theme.subText} font-bold tracking-wider flex items-center gap-2`}>
+                                                    <Clock size={12}/> Tempo
+                                                </label>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setFormState(s => ({...s, isAutoTime: !s.isAutoTime}))}
+                                                    className={`text-[10px] font-bold px-3 py-1.5 rounded-full border transition-all flex items-center gap-2 uppercase tracking-wide ${formState.isAutoTime ? 'bg-purple-500/10 border-purple-500 text-purple-500' : `${theme.cardBg} ${theme.border} ${theme.subText}`}`}
+                                                >
+                                                    {formState.isAutoTime ? <Sparkles size={10}/> : null}
+                                                    {formState.isAutoTime ? 'Automático' : 'Manual'}
+                                                </button>
+                                            </div>
+                                            
+                                            {formState.isAutoTime && (
+                                                <p className={`text-[10px] ${theme.subText} mb-3`}>
+                                                    {isToday 
+                                                        ? "Agendando a partir de agora + 30m." 
+                                                        : "Agendando a partir das 08:30 da manhã."}
+                                                </p>
+                                            )}
+
+                                            <div className="space-y-4">
+                                                {!formState.isAutoTime && (
+                                                    <div className="animate-in fade-in slide-in-from-top-2">
+                                                        <label className={`text-[10px] ${theme.subText} mb-1 block`}>Início</label>
+                                                        <input
+                                                            type="time"
+                                                            className={`w-full ${theme.cardBg} border ${theme.border} rounded-lg p-2 ${theme.text} focus:outline-none focus:border-indigo-500 text-sm font-mono`}
+                                                            value={formState.start}
+                                                            onChange={(e) => setFormState({ ...formState, start: e.target.value })}
+                                                            style={{ colorScheme: isDarkMode ? 'dark' : 'light' }}
+                                                        />
+                                                    </div>
+                                                )}
+
+                                                <div>
+                                                    <label className={`text-[10px] ${theme.subText} mb-2 block`}>Duração (Min)</label>
+                                                    <div className="grid grid-cols-3 gap-2">
+                                                        {PRESET_DURATIONS.map(mins => (
+                                                            <button
+                                                                key={mins}
+                                                                type="button"
+                                                                onClick={() => setFormState({...formState, duration: mins})}
+                                                                className={`py-2 px-1 text-xs font-bold rounded-lg transition-all border ${
+                                                                    formState.duration === mins 
+                                                                        ? 'bg-indigo-600 border-indigo-500 text-white shadow-md' 
+                                                                        : `${theme.cardBg} ${theme.border} ${theme.subText} hover:${theme.text}`
+                                                                }`}
+                                                            >
+                                                                {mins}m
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div>
+                                            <label className={`text-[10px] uppercase ${theme.subText} font-bold tracking-wider mb-2 block`}>Cor</label>
+                                            <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
+                                                {COLORS.map((c) => (
+                                                    <button
+                                                        key={c.hex}
+                                                        type="button"
+                                                        onClick={() => setFormState({...formState, color: c})}
+                                                        className={`w-8 h-8 rounded-full flex-shrink-0 transition-all ${formState.color.hex === c.hex ? 'scale-110 ring-2 ring-indigo-500 ring-offset-2' : 'hover:scale-105 opacity-60 hover:opacity-100'}`}
+                                                        style={{ backgroundColor: c.hex }}
+                                                    />
+                                                ))}
+                                            </div>
+                                        </div>
+
+                                        <div className="flex gap-3 pt-2">
+                                            {formState.id && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => deleteTask(formState.id)}
+                                                    className="px-4 py-3 rounded-xl bg-red-500/10 text-red-500 hover:bg-red-500/20 font-bold transition-colors border border-red-500/20"
+                                                >
+                                                    <Trash2 size={20} />
+                                                </button>
+                                            )}
+                                            <button
+                                            type="submit"
+                                            className="flex-1 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold py-3 rounded-xl shadow-lg transition-all flex items-center justify-center gap-2"
+                                            >
+                                            {formState.id ? <Save size={18} /> : <Plus size={18} strokeWidth={3} />}
+                                            {formState.id ? 'Salvar' : 'Agendar'}
+                                            </button>
+                                        </div>
+                                    </form>
+                                    </div>
+                                )}
+
+                                <div className="space-y-3">
+                                    <div className={`flex items-center justify-between ${theme.subText} pb-2 border-b ${theme.border}`}>
+                                        <span className="text-xs font-bold uppercase tracking-wider">Cronograma</span>
+                                        <span className={`text-[10px] ${isDarkMode ? 'bg-slate-800' : 'bg-slate-200'} px-2 py-0.5 rounded-full font-mono`}>{displayedTasks.length}</span>
+                                    </div>
+
+                                    {displayedTasks.length === 0 && !isFormOpen && (
+                                        <div className="text-center py-12 opacity-40 flex flex-col items-center">
+                                            <CalendarIcon className={`w-10 h-10 mb-3 ${theme.subText}`}/>
+                                            <p className={`text-xs ${theme.subText}`}>Sem tarefas para {formatDateDisplay(selectedDate)}.</p>
+                                        </div>
+                                    )}
+
+                                    <div className="space-y-2">
+                                        {[...displayedTasks].sort((a,b) => timeToMinutes(a.start) - timeToMinutes(b.start)).map((task) => (
+                                        <div 
+                                            key={task.id}
+                                            className={`group relative flex items-center gap-3 ${theme.cardBg} ${theme.cardHover} p-3 rounded-xl border ${theme.border} transition-all ${hoveredTask === task.id ? `border-l-4 ${isDarkMode ? 'border-l-white' : 'border-l-slate-800'}` : ''}`}
+                                            style={{ borderLeftColor: hoveredTask === task.id ? task.color.hex : undefined }}
+                                            onMouseEnter={() => setHoveredTask(task.id)}
+                                            onMouseLeave={() => setHoveredTask(null)}
+                                        >
+                                            <button onClick={() => toggleTask(task.id)} className={`flex-shrink-0 ${theme.subText} hover:${theme.accent} transition-colors`}>
+                                                {task.completed ? <CheckCircle2 size={18} className="text-green-500" /> : <CircleIcon size={18} />}
+                                            </button>
+
+                                            <div className={`flex-1 min-w-0 ${task.completed ? 'opacity-30 line-through' : ''}`}>
+                                                <h3 className={`font-medium ${theme.text} text-sm truncate`}>{task.title}</h3>
+                                                <div className={`flex items-center gap-2 text-[10px] ${theme.subText} font-mono mt-0.5`}>
+                                                    <span style={{ color: task.color.hex }}>●</span>
+                                                    {task.start} - {task.end} 
+                                                </div>
+                                            </div>
+                                            
+                                            <button 
+                                                onClick={() => handleEdit(task)}
+                                                className={`p-2 ${theme.subText} hover:${theme.text} ${isDarkMode ? 'bg-slate-800' : 'bg-slate-200'} rounded-lg transition-all opacity-0 group-hover:opacity-100`}
+                                            >
+                                                <Pencil size={14} />
+                                            </button>
+
+                                            <div className="absolute right-0 top-0 bottom-0 w-1 rounded-r-xl opacity-0 group-hover:opacity-100 transition-opacity" style={{ backgroundColor: task.color.hex }}></div>
+                                        </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                </main>
+                
+                <div className={`sm:hidden fixed bottom-0 left-0 right-0 p-4 ${isDarkMode ? 'bg-slate-900/90 border-t border-slate-800' : 'bg-white/90 border-t border-slate-200'} backdrop-blur flex justify-around items-center z-40 transition-colors`}>
+                        <button onClick={() => setActiveView('clock')} className={`flex flex-col items-center gap-1 ${activeView === 'clock' ? 'text-indigo-500' : theme.subText}`}>
+                            <LayoutTemplate size={20}/>
+                            <span className="text-[10px] uppercase font-bold">Relógio</span>
+                        </button>
+                        <button onClick={() => setActiveView('timeline')} className={`flex flex-col items-center gap-1 ${activeView === 'timeline' ? 'text-indigo-500' : theme.subText}`}>
+                            <List size={20}/>
+                            <span className="text-[10px] uppercase font-bold">Lista</span>
+                        </button>
+                </div>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
+
+
